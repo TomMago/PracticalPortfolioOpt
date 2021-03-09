@@ -115,3 +115,6 @@ def allocation(stocks, risk_level):
     mean_return = plug_in_ret + 1/np.sqrt(gamma) * (plug_in_ret - resample_ret)
 
     return allocation, mean_return
+
+
+#def efficency_kurve(stocks):

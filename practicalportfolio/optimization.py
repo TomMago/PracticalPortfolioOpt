@@ -2,7 +2,9 @@
 Basic methods for portfolio optimization
 '''
 
+import matplotlib.pyplot as plt
 import numpy as np
+from scipy.optimize import curve_fit
 
 
 def returns(stocks):
@@ -117,4 +119,40 @@ def allocation(stocks, risk_level):
     return allocation, mean_return
 
 
-#def efficency_kurve(stocks):
+def efficency_curve(stocks, lower_risk=None, upper_risk=None, plot_points=500):
+    '''
+    Plots the efficency frontier
+
+    Args:
+        stocks (pxn numpy array): Time series of returns of p number of stocks
+                                  with length n
+    '''
+
+    stock_stds = cov_matrix(stocks).diagonal()**0.5
+
+    if not lower_risk:
+        lower_risk = min(stock_stds)
+    if not upper_risk:
+        upper_risk = max(stock_stds)
+
+    risk_points = np.linspace(lower_risk, upper_risk, plot_points)
+
+    bootstrapped_returns = []
+    plug_returns = []
+
+    for i in risk_points:
+        allocs, ret = allocation(stocks, i)
+        allocs_plug, ret_plug = plug_in_allocation(stocks, i)
+        # allocs, ret = allocation(stocks, i)
+        bootstrapped_returns.append(ret)
+        plug_returns.append(ret_plug)
+
+    def fit(x, a, b, c):
+        return a*x**2 + b*x + c
+
+    params, cov = curve_fit(fit, risk_points, bootstrapped_returns)
+
+    plt.plot(risk_points, bootstrapped_returns)
+    plt.plot(risk_points, plug_returns)
+    plt.plot(risk_points, fit(risk_points, *params))
+    plt.show()

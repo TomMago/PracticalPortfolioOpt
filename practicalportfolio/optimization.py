@@ -5,7 +5,7 @@ Basic methods for portfolio optimization
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import curve_fit
-
+from scipy.optimize import minimize, Bounds, LinearConstraint
 
 def returns(stocks):
     '''Calculates the returns in percent from stock tick data
@@ -86,8 +86,46 @@ def plug_in_allocation(stocks, risk_level):
 
     return allocation, mean_returns
 
+def noshort_allocation(stocks, risk_level):
+    '''
+    Calculates the optimal portfolio allocation where all the weight are between 0 and 1
 
-def allocation(stocks, risk_level):
+    Args:
+        stocks (pxn numpy array): Time series of returns of p number of stocks
+                                  with length n
+        risk_level (float): Given level of risk the allocation should have
+
+    Returns:
+        allocation (p numpy array): Percent of capital to keep in one asset
+        returns (float): The return of the given allocation on historical
+                         the data
+    '''
+    num_stocks = stocks.shape[0]
+    means = mean(stocks)
+    cov = cov_matrix(stocks)
+
+    inital_weight = np.ones((num_stocks,1))/num_stocks
+
+    bounds = Bounds(0, 1)
+
+    opt_constraints = ({'type': 'eq',
+                        'fun': lambda c: 1.0 - np.sum(c)},
+                       {'type': 'ineq',
+                        'fun': lambda c: -risk_level**2 + c.T@cov@c})
+
+    optimal_weights = minimize(lambda c: c.T@means, inital_weight,
+                               #args=(exp_ret, cov),
+                               method='SLSQP',
+                               bounds=bounds,
+                               constraints=opt_constraints)
+
+    mean_returns = optimal_weights['x'].dot(means)
+
+    return optimal_weights['x'], mean_returns
+
+
+
+def bootstraped_allocation(stocks, risk_level):
     '''Calculates the optimal portfolio allocation with bootstrapping procedure
 
     Args:
@@ -119,6 +157,38 @@ def allocation(stocks, risk_level):
     return allocation, mean_return
 
 
+def noshort_bootstraped_allocation(stocks, risk_level):
+    '''Calculates the optimal portfolio allocation for positive weights with bootstrapping procedure
+
+    Args:
+        stocks (pxn numpy array): Time series of returns of p number of stocks
+                                  with length n
+        risk_level (float): Given level of risk the allocation should have
+
+    Returns:
+        allocation (p numpy array): Percent of capital to keep in one asset
+        returns (float): The return of the given allocation on historical
+                         the data
+    '''
+    num_stocks = stocks.shape[0]
+    num_samples = stocks.shape[1]
+    means = mean(stocks)
+    cov = cov_matrix(stocks)
+
+    resample = np.random.multivariate_normal(means, cov, size=(num_samples))
+    resample = resample.transpose()
+
+    plug_in_c, plug_in_ret = noshort_allocation(stocks, risk_level)
+    resample_c, resample_ret = noshort_allocation(resample, risk_level)
+
+    gamma = 1/(1 - num_stocks/num_samples)
+
+    allocation = plug_in_c + 1/np.sqrt(gamma) * (plug_in_c - resample_c)
+    mean_return = plug_in_ret + 1/np.sqrt(gamma) * (plug_in_ret - resample_ret)
+
+    return allocation, mean_return
+
+
 def efficency_curve(stocks, lower_risk=None, upper_risk=None, plot_points=500):
     '''
     Plots the efficency frontier
@@ -141,9 +211,8 @@ def efficency_curve(stocks, lower_risk=None, upper_risk=None, plot_points=500):
     plug_returns = []
 
     for i in risk_points:
-        allocs, ret = allocation(stocks, i)
+        allocs, ret = bootstraped_allocation(stocks, i)
         allocs_plug, ret_plug = plug_in_allocation(stocks, i)
-        # allocs, ret = allocation(stocks, i)
         bootstrapped_returns.append(ret)
         plug_returns.append(ret_plug)
 
@@ -155,4 +224,38 @@ def efficency_curve(stocks, lower_risk=None, upper_risk=None, plot_points=500):
     plt.plot(risk_points, bootstrapped_returns)
     plt.plot(risk_points, plug_returns)
     plt.plot(risk_points, fit(risk_points, *params))
-    plt.show()
+
+def noshort_efficency_curve(stocks, lower_risk=None, upper_risk=None, plot_points=80):
+    '''
+    Plots the efficency frontier for only positive weights
+
+    Args:
+        stocks (pxn numpy array): Time series of returns of p number of stocks
+                                  with length n
+    '''
+
+    stock_stds = cov_matrix(stocks).diagonal()**0.5
+
+    if not lower_risk:
+        lower_risk = min(stock_stds)
+    if not upper_risk:
+        upper_risk = max(stock_stds)
+
+    risk_points = np.linspace(lower_risk, upper_risk, plot_points)
+
+    bootstrapped_returns = []
+    noshort_returns = []
+
+    for i in risk_points:
+        allocs, ret = noshort_allocation(stocks, i)
+        allocs_plug, ret_plug = noshort_bootstraped_allocation(stocks, i)
+        bootstrapped_returns.append(ret_plug)
+        noshort_returns.append(ret)
+
+    # def fit(x, a, b, c):
+    #     return a*x**2 + b*x + c
+    #
+    # params, cov = curve_fit(fit, risk_points, bootstrapped_returns)
+
+    plt.plot(risk_points, noshort_returns)
+    plt.plot(risk_points, bootstrapped_returns)

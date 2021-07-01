@@ -104,17 +104,16 @@ def noshort_allocation(stocks, risk_level):
     means = mean(stocks)
     cov = cov_matrix(stocks)
 
-    inital_weight = np.ones((num_stocks,1))/num_stocks
+    inital_weight = np.ones((num_stocks, 1))/num_stocks
 
     bounds = Bounds(0, 1)
 
     opt_constraints = ({'type': 'eq',
                         'fun': lambda c: 1.0 - np.sum(c)},
                        {'type': 'ineq',
-                        'fun': lambda c: -risk_level**2 + c.T@cov@c})
+                        'fun': lambda c: risk_level**2 - c.T@cov@c})
 
-    optimal_weights = minimize(lambda c: c.T@means, inital_weight,
-                               #args=(exp_ret, cov),
+    optimal_weights = minimize(lambda c: -c.T@means, inital_weight,
                                method='SLSQP',
                                bounds=bounds,
                                constraints=opt_constraints)
@@ -225,7 +224,7 @@ def efficency_curve(stocks, lower_risk=None, upper_risk=None, plot_points=500):
     plt.plot(risk_points, plug_returns)
     plt.plot(risk_points, fit(risk_points, *params))
 
-def noshort_efficency_curve(stocks, lower_risk=None, upper_risk=None, plot_points=80):
+def noshort_efficency_curve(stocks, lower_risk=None, upper_risk=None, plot_points=200):
     '''
     Plots the efficency frontier for only positive weights
 
@@ -239,7 +238,7 @@ def noshort_efficency_curve(stocks, lower_risk=None, upper_risk=None, plot_point
     if not lower_risk:
         lower_risk = min(stock_stds)
     if not upper_risk:
-        upper_risk = max(stock_stds)
+        upper_risk = max(stock_stds)/2
 
     risk_points = np.linspace(lower_risk, upper_risk, plot_points)
 

@@ -17,12 +17,12 @@ data = yf.download(stock_list, start="2019-09-01", end="2021-02-28",
 stocks = returns(data['Close'].values.transpose())
 
 # Plot efficency curve
-#efficency_curve(stocks, plot_points=300)
+efficency_curve(stocks, plot_points=300)
 # Efficency curve without negative weights
-noshort_efficency_curve(stocks, plot_points=150)
+# noshort_efficency_curve(stocks, plot_points=150)
 
 # Print optimal allocation for given risk
-#print(bootstraped_allocation(stocks, 0.08))
+# print(bootstraped_allocation(stocks, 0.08))
 
 plt.ylabel(r'Optimal Return $R$')
 plt.xlabel(r'Risk $\sigma_0$')

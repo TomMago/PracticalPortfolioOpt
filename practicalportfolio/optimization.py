@@ -59,7 +59,7 @@ def plug_in_allocation(stocks, risk_level):
     Returns:
         allocation (p numpy array): Percent of capital to keep in one asset
         returns (float): The return of the given allocation on historical
-                         the data
+                         data
     '''
     num_stocks = stocks.shape[0]
     means = mean(stocks)
@@ -98,7 +98,7 @@ def noshort_allocation(stocks, risk_level):
     Returns:
         allocation (p numpy array): Percent of capital to keep in one asset
         returns (float): The return of the given allocation on historical
-                         the data
+                         data
     '''
     num_stocks = stocks.shape[0]
     means = mean(stocks)
@@ -121,7 +121,6 @@ def noshort_allocation(stocks, risk_level):
     mean_returns = optimal_weights['x'].dot(means)
 
     return optimal_weights['x'], mean_returns
-
 
 
 def bootstraped_allocation(stocks, risk_level):
@@ -210,23 +209,27 @@ def efficency_curve(stocks, lower_risk=None, upper_risk=None, plot_points=500):
     plug_returns = []
 
     for i in risk_points:
-        allocs, ret = bootstraped_allocation(stocks, i)
-        allocs_plug, ret_plug = plug_in_allocation(stocks, i)
+        _, ret = bootstraped_allocation(stocks, i)
+        _, ret_plug = plug_in_allocation(stocks, i)
         bootstrapped_returns.append(ret)
         plug_returns.append(ret_plug)
 
     def fit(x, a, b, c):
         return a*x**2 + b*x + c
 
-    params, cov = curve_fit(fit, risk_points, bootstrapped_returns)
+    params, _ = curve_fit(fit, risk_points, bootstrapped_returns)
 
     plt.plot(risk_points, bootstrapped_returns)
     plt.plot(risk_points, plug_returns)
     plt.plot(risk_points, fit(risk_points, *params))
 
+
 def noshort_efficency_curve(stocks, lower_risk=None, upper_risk=None, plot_points=200):
     '''
     Plots the efficency frontier for only positive weights
+
+    For large risk values the curve will be constant since the optimal allocation with maximum risk
+    ist reached (weight 1 for best performing stock)
 
     Args:
         stocks (pxn numpy array): Time series of returns of p number of stocks
@@ -246,15 +249,10 @@ def noshort_efficency_curve(stocks, lower_risk=None, upper_risk=None, plot_point
     noshort_returns = []
 
     for i in risk_points:
-        allocs, ret = noshort_allocation(stocks, i)
-        allocs_plug, ret_plug = noshort_bootstraped_allocation(stocks, i)
+        _, ret = noshort_allocation(stocks, i)
+        _, ret_plug = noshort_bootstraped_allocation(stocks, i)
         bootstrapped_returns.append(ret_plug)
         noshort_returns.append(ret)
-
-    # def fit(x, a, b, c):
-    #     return a*x**2 + b*x + c
-    #
-    # params, cov = curve_fit(fit, risk_points, bootstrapped_returns)
 
     plt.plot(risk_points, noshort_returns)
     plt.plot(risk_points, bootstrapped_returns)
